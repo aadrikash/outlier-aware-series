@@ -36,7 +36,8 @@ def test_zscore_detects_obvious_outlier():
 
 
 def test_zscore_no_outliers_in_uniform_data():
-    s = OutlierAwareSeries([5, 5, 5, 5], method="zscore")
+    with pytest.warns(UserWarning, match="can never exceed"):
+        s = OutlierAwareSeries([5, 5, 5, 5], method="zscore")
     assert s.outliers() == []
     assert s.clean() == [5, 5, 5, 5]
 
@@ -85,31 +86,31 @@ def test_summary_reports_counts_and_means():
 # Comparing methods without mutating state
 # ----------------------------------------------------------------------
 def test_flags_with_does_not_mutate():
-    s = OutlierAwareSeries([1, 2, 2, 3, 2, 100], method="zscore", threshold=3)
+    with pytest.warns(UserWarning, match="can never exceed"):
+        s = OutlierAwareSeries([1, 2, 2, 3, 2, 100], method="zscore", threshold=3)
     before = s.flags
     alt_flags = s.flags_with("iqr", 1.5)
     assert s.flags == before  # unchanged
     assert isinstance(alt_flags, list)
 
-
 def test_recompute_changes_state_and_returns_self():
-    s = OutlierAwareSeries([1, 2, 2, 3, 2, 100], method="zscore", threshold=10)
+    with pytest.warns(UserWarning, match="can never exceed"):
+        s = OutlierAwareSeries([1, 2, 2, 3, 2, 100], method="zscore", threshold=10)
     assert s.outliers() == []  # threshold too high to flag anything
     result = s.recompute(threshold=2)
     assert result is s
     assert s.outliers() == [100]
 
-
 # ----------------------------------------------------------------------
 # Dunder / collection-like behavior
 # ----------------------------------------------------------------------
 def test_len_and_getitem():
-    s = OutlierAwareSeries([10, 20, 30])
+    with pytest.warns(UserWarning, match="can never exceed"):
+        s = OutlierAwareSeries([10, 20, 30])
     assert len(s) == 3
     value, is_outlier = s[0]
     assert value == 10
     assert isinstance(is_outlier, bool)
-
 
 def test_iteration_yields_value_flag_pairs():
     s = OutlierAwareSeries([1, 2, 2, 3, 2, 100], method="zscore", threshold=2)
@@ -119,12 +120,13 @@ def test_iteration_yields_value_flag_pairs():
 
 
 def test_equality():
-    a = OutlierAwareSeries([1, 2, 3], method="zscore", threshold=3)
-    b = OutlierAwareSeries([1, 2, 3], method="zscore", threshold=3)
+    with pytest.warns(UserWarning, match="can never exceed"):
+        a = OutlierAwareSeries([1, 2, 3], method="zscore", threshold=3)
+    with pytest.warns(UserWarning, match="can never exceed"):
+        b = OutlierAwareSeries([1, 2, 3], method="zscore", threshold=3)
     c = OutlierAwareSeries([1, 2, 3], method="iqr", threshold=3)
     assert a == b
     assert a != c
-
 
 def test_repr_contains_key_info():
     s = OutlierAwareSeries([1, 2, 2, 3, 2, 100], method="zscore", threshold=2)

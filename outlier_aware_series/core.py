@@ -20,8 +20,8 @@ Example
 from __future__ import annotations
 
 import statistics
+import warnings
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
-
 Number = Union[int, float]
 
 
@@ -33,12 +33,18 @@ class OutlierAwareSeries:
     ----------
     data : Iterable[float]
         The numeric values to wrap.
-    method : str, default "zscore"
-        Outlier-detection method. One of ``"zscore"`` or ``"iqr"``.
+   method : str, default "zscore"
+        Outlier-detection method. One of ``"zscore"``, ``"iqr"``, or
+        ``"modified_zscore"``.
     threshold : float, default 3.0
         For ``"zscore"``: number of standard deviations from the mean.
+        Note: for small datasets, plain z-score has a hard mathematical
+        ceiling of (n-1)/sqrt(n) — a threshold above that can NEVER flag
+        anything, no matter how extreme the value is. A warning is raised
+        if this happens.
         For ``"iqr"``: multiplier applied to the interquartile range.
-
+        For ``"modified_zscore"``: robust alternative using median/MAD,
+        not affected by the small-sample ceiling above. Common threshold: 3.5.
     Notes
     -----
     Outlier flags are computed once at construction time (or whenever
@@ -46,7 +52,7 @@ class OutlierAwareSeries:
     values themselves are never discarded.
     """
 
-    VALID_METHODS = ("zscore", "iqr")
+   VALID_METHODS = ("zscore", "iqr", "modified_zscore")
 
     def __init__(
         self,
@@ -81,12 +87,39 @@ class OutlierAwareSeries:
         if self.method not in self.VALID_METHODS:
             raise ValueError(f"Unknown method '{self.method}'. Choose from {self.VALID_METHODS}")
 
-        if self.method == "zscore":
+      if self.method == "zscore":
+            self._warn_if_threshold_unreachable(self.data, self.threshold)
             self._flags = self._flags_zscore(self.data, self.threshold)
         elif self.method == "iqr":
             self._flags = self._flags_iqr(self.data, self.threshold)
+        elif self.method == "modified_zscore":
+            self._flags = self._flags_modified_zscore(self.data, self.threshold)
 
         return self
+
+    @staticmethod
+    def _warn_if_threshold_unreachable(data: Sequence[Number], threshold: float) -> None:
+        """Plain z-score has a hard mathematical ceiling: for n points, no
+        single value can ever produce a z-score higher than (n-1)/sqrt(n).
+        If the threshold is set above that ceiling, NOTHING can ever be
+        flagged, no matter how extreme the outlier is. Warn the user instead
+        of silently returning zero outliers.
+        """
+        n = len(data)
+        if n < 2:
+            return
+        max_possible_z = (n - 1) / (n ** 0.5)
+        if threshold >= max_possible_z:
+            warnings.warn(
+                f"With only {n} data points, a z-score can never exceed "
+                f"{max_possible_z:.2f}. Your threshold of {threshold} can "
+                f"NEVER flag any outlier, regardless of how extreme it is. "
+                f"Lower the threshold (below {max_possible_z:.2f}) or use "
+                f"method='modified_zscore' or method='iqr' instead, which "
+                f"don't have this small-sample ceiling.",
+                UserWarning,
+                stacklevel=3,
+            )
 
     @staticmethod
     def _flags_zscore(data: Sequence[Number], threshold: float) -> List[bool]:
@@ -98,7 +131,7 @@ class OutlierAwareSeries:
             return [False] * len(data)
         return [abs((x - mean) / std) > threshold for x in data]
 
-    @staticmethod
+   @staticmethod
     def _flags_iqr(data: Sequence[Number], threshold: float) -> List[bool]:
         if len(data) < 4:
             return [False] * len(data)
@@ -110,7 +143,26 @@ class OutlierAwareSeries:
         upper = q3 + threshold * iqr
         return [x < lower or x > upper for x in data]
 
-    def flags_with(self, method: str, threshold: float) -> List[bool]:
+    @staticmethod
+    def _flags_modified_zscore(data: Sequence[Number], threshold: float) -> List[bool]:
+        """Robust alternative to plain z-score. Uses the median and MAD
+        (Median Absolute Deviation) instead of mean/stdev, so a single
+        extreme value can't drag the yardstick around and hide itself
+        the way it can with plain z-score. Common threshold: 3.5.
+        """
+        if len(data) < 2:
+            return [False] * len(data)
+        median = statistics.median(data)
+        abs_deviations = [abs(x - median) for x in data]
+        mad = statistics.median(abs_deviations)
+        if mad == 0:
+            return [False] * len(data)
+        # 0.6745 makes MAD comparable in scale to standard deviation
+        # for normally distributed data.
+        modified_z_scores = [0.6745 * dev / mad for dev in abs_deviations]
+        return [z > threshold for z in modified_z_scores]
+        
+   def flags_with(self, method: str, threshold: float) -> List[bool]:
         """Compute flags with an alternate method/threshold *without*
         mutating this series. Useful for comparing methods side by side.
         """
@@ -118,7 +170,10 @@ class OutlierAwareSeries:
             return self._flags_zscore(self.data, threshold)
         elif method == "iqr":
             return self._flags_iqr(self.data, threshold)
+        elif method == "modified_zscore":
+            return self._flags_modified_zscore(self.data, threshold)
         raise ValueError(f"Unknown method '{method}'. Choose from {self.VALID_METHODS}")
+       
 
     # ------------------------------------------------------------------
     # Access

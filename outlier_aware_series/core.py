@@ -22,6 +22,7 @@ from __future__ import annotations
 import statistics
 import warnings
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
+
 Number = Union[int, float]
 
 
@@ -33,7 +34,7 @@ class OutlierAwareSeries:
     ----------
     data : Iterable[float]
         The numeric values to wrap.
-   method : str, default "zscore"
+    method : str, default "zscore"
         Outlier-detection method. One of ``"zscore"``, ``"iqr"``, or
         ``"modified_zscore"``.
     threshold : float, default 3.0
@@ -45,6 +46,7 @@ class OutlierAwareSeries:
         For ``"iqr"``: multiplier applied to the interquartile range.
         For ``"modified_zscore"``: robust alternative using median/MAD,
         not affected by the small-sample ceiling above. Common threshold: 3.5.
+
     Notes
     -----
     Outlier flags are computed once at construction time (or whenever
@@ -52,7 +54,7 @@ class OutlierAwareSeries:
     values themselves are never discarded.
     """
 
-   VALID_METHODS = ("zscore", "iqr", "modified_zscore")
+    VALID_METHODS = ("zscore", "iqr", "modified_zscore")
 
     def __init__(
         self,
@@ -87,7 +89,7 @@ class OutlierAwareSeries:
         if self.method not in self.VALID_METHODS:
             raise ValueError(f"Unknown method '{self.method}'. Choose from {self.VALID_METHODS}")
 
-      if self.method == "zscore":
+        if self.method == "zscore":
             self._warn_if_threshold_unreachable(self.data, self.threshold)
             self._flags = self._flags_zscore(self.data, self.threshold)
         elif self.method == "iqr":
@@ -131,7 +133,7 @@ class OutlierAwareSeries:
             return [False] * len(data)
         return [abs((x - mean) / std) > threshold for x in data]
 
-   @staticmethod
+    @staticmethod
     def _flags_iqr(data: Sequence[Number], threshold: float) -> List[bool]:
         if len(data) < 4:
             return [False] * len(data)
@@ -161,8 +163,8 @@ class OutlierAwareSeries:
         # for normally distributed data.
         modified_z_scores = [0.6745 * dev / mad for dev in abs_deviations]
         return [z > threshold for z in modified_z_scores]
-        
-   def flags_with(self, method: str, threshold: float) -> List[bool]:
+
+    def flags_with(self, method: str, threshold: float) -> List[bool]:
         """Compute flags with an alternate method/threshold *without*
         mutating this series. Useful for comparing methods side by side.
         """
@@ -173,7 +175,6 @@ class OutlierAwareSeries:
         elif method == "modified_zscore":
             return self._flags_modified_zscore(self.data, threshold)
         raise ValueError(f"Unknown method '{method}'. Choose from {self.VALID_METHODS}")
-       
 
     # ------------------------------------------------------------------
     # Access
@@ -272,3 +273,4 @@ class OutlierAwareSeries:
             f"OutlierAwareSeries(n={len(self.data)}, "
             f"n_outliers={sum(self._flags)}, method={self.method!r}, threshold={self.threshold})"
         )
+        

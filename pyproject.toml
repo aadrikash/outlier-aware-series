@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "outlier-aware-series"
+version = "0.1.0"
+description = "A numeric collection that flags statistical outliers as metadata instead of silently dropping them."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "Aadrika Sharma" }
+]
+keywords = ["data-science", "outliers", "statistics", "data-quality", "pandas"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = []
+
+[project.optional-dependencies]
+pandas = ["pandas"]
+plot = ["matplotlib"]
+dev = ["pytest", "pandas", "matplotlib"]
+
+[project.urls]
+Homepage = "https://github.com/aadrikash/outlier-aware-series"
+Issues = "https://github.com/aadrikash/outlier-aware-series/issues"
+
+[tool.setuptools.packages.find]
+include = ["outlier_aware_series*"]

@@ -61,12 +61,35 @@ s.to_pandas()   # DataFrame with 'value' and 'is_outlier' columns
 s.plot()        # scatter plot, outliers highlighted in red
 ```
 
+### A warning about small datasets and z-score
+
+Plain z-score has a hard mathematical ceiling: for `n` data points, no
+single value can ever produce a z-score higher than `(n-1)/sqrt(n)`. On
+small datasets, a single extreme value can inflate the mean and standard
+deviation so much that it hides from its own detection.
+
+```python
+OutlierAwareSeries([10, 12, 11, 13, 12, 5000], method="zscore", threshold=3)
+# UserWarning: With only 6 data points, a z-score can never exceed 2.04.
+# Your threshold of 3 can NEVER flag any outlier, regardless of how
+# extreme it is. Lower the threshold, or use method='modified_zscore'
+# or method='iqr' instead.
+```
+
+If you see this warning, switch to `modified_zscore` or `iqr`:
+
+```python
+OutlierAwareSeries([10, 12, 11, 13, 12, 5000], method="modified_zscore", threshold=3.5).outliers()
+# [5000]
+```
+
 ## Detection methods
 
-| Method    | How it works                                             |
-|-----------|-----------------------------------------------------------|
-| `zscore`  | Flags values more than `threshold` standard deviations from the mean |
-| `iqr`     | Flags values outside `Q1 - threshold*IQR` .. `Q3 + threshold*IQR`     |
+| Method            | How it works                                                          |
+|-------------------|------------------------------------------------------------------------|
+| `zscore`          | Flags values more than `threshold` standard deviations from the mean. Has a known ceiling on small datasets — see above. |
+| `iqr`             | Flags values outside `Q1 - threshold*IQR` .. `Q3 + threshold*IQR`     |
+| `modified_zscore` | Robust alternative using median and MAD (Median Absolute Deviation) instead of mean/stdev. Not affected by the small-sample ceiling that affects plain `zscore`. Common threshold: `3.5`. |
 
 ## Why not just use pandas + a boolean mask?
 

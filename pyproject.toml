@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "outlier-aware-series"
-version = "0.1.0"
+version = "0.2.0"
 description = "A numeric collection that flags statistical outliers as metadata instead of silently dropping them."
 readme = "README.md"
 requires-python = ">=3.8"
